@@ -23,6 +23,7 @@
   - [4.2 Split horizon workflow](#42-split-horizon-workflow)
   - [4.3 DF Workflow](#43-df-workflow)
   - [4.4 Fast failover workflow](#44-fast-failover-workflow)
+  - [4.5 Single Active Redundancy workflow](#45-single-active-redundancy-workflow)
 
 
 # Revision
@@ -171,6 +172,28 @@ typedef enum _sai_bridge_port_attr_t
     SAI_BRIDGE_PORT_ATTR_BUM_TX_DROP,
 ```
 
+To handle DF election per VLAN and when a dot1q bridge model is used the above attribute is defined as part of the Vlan Member. 
+ 
+```
+typedef enum _sai_vlan_member_attr_t
+{
+...
+
+    /**
+     * @brief Indicates if the bridge port is set to drop the broadcast, unknown unicast and multicast traffic
+     * When set to true, egress BUM traffic will be dropped
+     *  
+     * Valid only when the SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID is of type PORT.
+     * 
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     * 
+     */
+    SAI_VLAN_MEMBER_ATTR_BUM_TX_DROP,
+
+```
+
 ### 3.2.3 Split Horizon support
 
   - Tunnels of peer mode P2P are only considered here. The isolation group object is used to achieve the split horizon functionality.
@@ -197,6 +220,16 @@ typedef enum _sai_bridge_port_attr_t
      * @default SAI_NULL_OBJECT_ID
      */
     SAI_BRIDGE_PORT_ATTR_BRIDGE_PORT_PROTECTION_NEXT_HOP_GROUP_ID,
+
+    /**
+     * @brief Trigger a switch-over from primary to backup next hop
+     *
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     * @validonly SAI_BRIDGE_PORT_ATTR_TYPE == SAI_BRIDGE_PORT_TYPE_PORT
+     */
+    SAI_BRIDGE_PORT_ATTR_BRIDGE_PORT_SET_SWITCHOVER
 ...
 }
 ```
@@ -260,6 +293,67 @@ typedef enum _sai_bridge_port_attr_t
 }
 ```
 
+To handle Single Active redundancy PE per VLAN and when a dot1q bridge model is used the above attribute is defined as part of the Vlan Member. 
+ 
+```
+typedef enum _sai_vlan_member_attr_t
+{
+...
+
+    /**
+     * @brief Indicates if the bridge port is set to drop the broadcast, unknown unicast and multicast traffic
+     * When set to true, ingress BUM traffic will be dropped
+     *  
+     * Valid only when the SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID is of type PORT.
+     * 
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     * 
+     */
+    SAI_VLAN_MEMBER_ATTR_BUM_RX_DROP,
+
+   /**
+     * @brief Indicates if the bridge port is set to drop the broadcast, unknown unicast and multicast traffic
+     * When set to true, egress BUM traffic will be dropped
+     *  
+     * Valid only when the SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID is of type PORT.
+     * 
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     * 
+     */
+    SAI_VLAN_MEMBER_ATTR_BUM_TX_DROP,
+
+   /**
+     * @brief Indicates if the vlan member is set to drop the known unicast traffic
+     * When set to true, ingress unicast traffic will be dropped
+     *  
+     * Valid only when the SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID is of type PORT.
+     * 
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     * 
+     */
+    SAI_VLAN_MEMBER_ATTR_UCAST_RX_DROP,
+
+   /**
+     * @brief Indicates if the vlan member is set to drop the known unicast traffic
+     * When set to true, egress unicast traffic will be dropped
+     *  
+     * Valid only when the SAI_VLAN_MEMBER_ATTR_BRIDGE_PORT_ID is of type PORT.
+     * 
+     * @type bool
+     * @flags CREATE_AND_SET
+     * @default false
+     * 
+     */
+    SAI_VLAN_MEMBER_ATTR_UCAST_TX_DROP,
+
+```
+
 
 # 4.0 Sample Workflow
 
@@ -268,7 +362,7 @@ This section describes the SAI object usage for different EVPN MH scenarios.
 
 ## 4.1 Known Unicast workflow
 
-![EVPN Multihoming](figures/sai_evpnmh_unicast.PNG "Figure 1: Known Unicast Packet Flow")
+![EVPN Multihoming](figures/sai_evpnmh_unicast.png "Figure 1: Known Unicast Packet Flow")
 __Figure 1: Known Unicast Packet Flow__
 
 At VTEP5 the following objects are created.
@@ -318,7 +412,7 @@ At VTEP5 the following objects are created.
     next_hop_attr.value.ipaddr = vtep1_ip;
     next_hop_attrs.push_back(next_hop_attr);
 
-    next_hop_attr.id = SAI_NEXT_HOP_ATTR_TUNNEL_ID; /* Can be P2MP Tunnel ID as well */
+    next_hop_attr.id = SAI_NEXT_HOP_ATTR_TUNNEL_ID;
     next_hop_attr.value.oid = tnl_oid_1;
     next_hop_attrs.push_back(next_hop_attr);
 
@@ -438,7 +532,7 @@ At VTEP5 the following objects are created.
   to achieve the split horizon functionality and do not need the attributes being introduced as part of this
   PR. It is being elaborated here for completeness.
 
-![EVPN Multihoming](figures/sai_evpnmh_splithorizon.PNG "Figure 1: Split Horizon")
+![EVPN Multihoming](figures/sai_evpnmh_splithorizon.png "Figure 1: Split Horizon")
 __Figure 2: Split Horizon Flow__
 
   At VTEP1 the following SAI objects with sub types are created.
@@ -491,7 +585,7 @@ __Figure 2: Split Horizon Flow__
 
 ## 4.3 DF workflow
 
-![EVPN Multihoming](figures/sai_evpnmh_df.PNG "Figure 1: Designated Forwarder")
+![EVPN Multihoming](figures/sai_evpnmh_df.png "Figure 1: Designated Forwarder")
 __Figure 3: Designated Forwarder Flow__
 
 - DF settings
@@ -510,7 +604,7 @@ __Figure 3: Designated Forwarder Flow__
  
 ## 4.4 Fast Failover workflow
 
-![EVPN Multihoming](figures/sai_evpnmh_failover.PNG "Figure 1: Failover")
+![EVPN Multihoming](figures/sai_evpnmh_failover.png "Figure 1: Failover")
 __Figure 4: Failover Flow__
 
 
@@ -538,6 +632,42 @@ At VTEP1, the following objects are created.
 ```
 
   - FDB Entry set to point to the bp_lag_oid
+
+
+## 4.5 Single Active Redundancy workflow
+
+![EVPN Multihoming](figures/sai_evpnmh_singleactive.png "Figure 1: Single Active redundancy")
+__Figure 5: Single Active Redundancy Flow__
+
+- Bridgeport settings to achieve single active redundancy
+
+
+```
+    sai_attribute_t attr;
+    attr.id = SAI_BRIDGE_PORT_ATTR_BUM_TX_DROP;
+    attr.value.booldata  = true;
+
+    status = sai_bridge_api->set_bridge_port_attribute(lag_bp_oid, &attr);
+
+    sai_attribute_t attr;
+    attr.id = SAI_BRIDGE_PORT_ATTR_BUM_RX_DROP;
+    attr.value.booldata  = true;
+
+    status = sai_bridge_api->set_bridge_port_attribute(lag_bp_oid, &attr);
+
+    sai_attribute_t attr;
+    attr.id = SAI_BRIDGE_PORT_ATTR_UCAST_TX_DROP;
+    attr.value.booldata  = true;
+
+    status = sai_bridge_api->set_bridge_port_attribute(lag_bp_oid, &attr);
+
+    sai_attribute_t attr;
+    attr.id = SAI_BRIDGE_PORT_ATTR_UCAST_RX_DROP;
+    attr.value.booldata  = true;
+
+    status = sai_bridge_api->set_bridge_port_attribute(lag_bp_oid, &attr);
+
+```
 
 
 
